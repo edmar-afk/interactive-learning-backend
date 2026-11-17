@@ -2,7 +2,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import FileExtensionValidator
-
+import os
 
 class Lessons(models.Model):
     created_by = models.ForeignKey(
@@ -133,3 +133,25 @@ class QuizScore(models.Model):
 
     class Meta:
         ordering = ["-time_submitted"]
+        
+        
+
+
+def upload_file_path(instance, filename):
+    return f"uploaded_files/{filename}"
+
+
+class FileUpload(models.Model):
+    title = models.CharField(max_length=255)
+    file = models.FileField(upload_to=upload_file_path)
+    date_posted = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def file_extension(self):
+        return os.path.splitext(self.file.name)[1].lower()
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        ordering = ['-date_posted']

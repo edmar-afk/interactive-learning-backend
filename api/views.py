@@ -6,8 +6,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import AllowAny
-
-from .models import Lessons, Quiz, QuizQuestion, LessonsVideo, QuizScore
+from django.shortcuts import get_object_or_404
+from django.http import FileResponse
+from .models import Lessons, Quiz, QuizQuestion, LessonsVideo, QuizScore, FileUpload
 
 from .serializers import (
     RegisterSerializer,
@@ -16,7 +17,7 @@ from .serializers import (
     LessonsSerializer,
     QuizSerializer,
     QuizQuestionSerializer,
-    LessonsVideoSerializer, QuizScoreSerializer
+    LessonsVideoSerializer, QuizScoreSerializer, FileUploadSerializer
 )
 
 
@@ -408,4 +409,134 @@ class AllStudentsQuizScoresView(APIView):
         return Response(
             serializer.data,
             status=status.HTTP_200_OK
+        )
+        
+        
+        
+
+
+# UPLOAD FILE
+class FileUploadCreateView(generics.CreateAPIView):
+    queryset = FileUpload.objects.all()
+    serializer_class = FileUploadSerializer
+    permission_classes = [AllowAny]
+
+
+# LIST ALL UPLOADED FILES
+class FileUploadListView(generics.ListAPIView):
+    queryset = FileUpload.objects.all()
+    serializer_class = FileUploadSerializer
+    permission_classes = [AllowAny]
+
+
+# VIEW FILE DETAILS
+class FileUploadDetailView(generics.RetrieveAPIView):
+    queryset = FileUpload.objects.all()
+    serializer_class = FileUploadSerializer
+    permission_classes = [AllowAny]
+
+
+# VIEW / OPEN FILE
+class FileUploadView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        uploaded_file = get_object_or_404(FileUpload, pk=pk)
+
+        if not uploaded_file.file:
+            return Response(
+                {"error": "File not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return Response({
+            "id": uploaded_file.id,
+            "title": uploaded_file.title,
+            "file_url": request.build_absolute_uri(uploaded_file.file.url),
+            "file_extension": uploaded_file.file_extension,
+            "date_posted": uploaded_file.date_posted,
+        })
+
+
+# DOWNLOAD FILE
+class FileUploadDownloadView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        uploaded_file = get_object_or_404(FileUpload, pk=pk)
+
+        if not uploaded_file.file:
+            return Response(
+                {"error": "File not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        return FileResponse(
+            uploaded_file.file.open('rb'),
+            as_attachment=True,
+            filename=uploaded_file.file.name.split('/')[-1]
+        )
+
+
+# DELETE FILE
+class FileUploadDeleteView(generics.DestroyAPIView):
+    queryset = FileUpload.objects.all()
+    serializer_class = FileUploadSerializer
+    permission_classes = [AllowAny]
+
+    def perform_destroy(self, instance):
+        instance.file.delete(save=False)
+        instance.delete()
+        
+        
+# ==========================================================
+# STUDENT MANAGEMENT
+# GET  /api/students/
+# POST /api/students/
+# ==========================================================
+
+class StudentsListCreateView(generics.ListCreateAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return User.objects.filter(
+            is_staff=False,
+            is_superuser=False
+        ).order_by("first_name", "username")
+
+    def post(self, request, *args, **kwargs):
+        serializer = RegisterSerializer(data=request.data)
+
+        if serializer.is_valid():
+            student = serializer.save()
+
+            return Response(
+                {
+                    "message": "Student registered successfully!",
+                    "student": UserSerializer(student).data
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+# ==========================================================
+# STUDENT DETAILS / DELETE
+# GET    /api/students/<pk>/
+# DELETE /api/students/<pk>/
+# ==========================================================
+
+class StudentDetailView(generics.RetrieveDestroyAPIView):
+    serializer_class = UserSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        return User.objects.filter(
+            is_staff=False,
+            is_superuser=False
         )

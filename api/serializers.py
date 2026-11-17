@@ -6,7 +6,7 @@ from .models import (
     Lessons,
     LessonsVideo,
     Quiz,
-    QuizQuestion, QuizScore
+    QuizQuestion, QuizScore, FileUpload
 )
 
 
@@ -317,3 +317,31 @@ class StudentsQuizScoreSerializer(serializers.ModelSerializer):
             "comment",
             "time_submitted",
         ]
+        
+        
+class FileUploadSerializer(serializers.ModelSerializer):
+    file_extension = serializers.ReadOnlyField()
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FileUpload
+        fields = [
+            'id',
+            'title',
+            'file',
+            'file_extension',
+            'file_url',
+            'date_posted',
+        ]
+        read_only_fields = ['id', 'date_posted', 'file_extension', 'file_url']
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+
+        if obj.file:
+            return obj.file.url
+
+        return None
