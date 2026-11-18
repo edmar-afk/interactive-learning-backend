@@ -133,8 +133,8 @@ class QuizScore(models.Model):
 
     class Meta:
         ordering = ["-time_submitted"]
-        
-        
+
+
 
 
 def upload_file_path(instance, filename):
@@ -155,3 +155,23 @@ class FileUpload(models.Model):
 
     class Meta:
         ordering = ['-date_posted']
+
+def video_upload_path(instance, filename):
+    return os.path.join("videos", filename)
+
+
+class Video(models.Model):
+    title = models.TextField(blank=True, null=True)
+    file = models.FileField(
+        upload_to="videos/",
+        validators=[
+            FileExtensionValidator(allowed_extensions=["mp4", "avi", "mov", "mkv", "webm"])
+        ]
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title or os.path.basename(self.file.name)
+
+    class Meta:
+        ordering = ["-uploaded_at"]

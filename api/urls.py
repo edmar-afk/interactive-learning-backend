@@ -23,6 +23,10 @@ from .views import (
     FileUploadDeleteView,
     StudentsListCreateView,
     StudentDetailView,
+    VideoListView,
+    VideoUploadView,
+    VideoViewView,
+    VideoDeleteView,
 )
 
 
@@ -63,4 +67,30 @@ urlpatterns = [
     
     path("students/", StudentsListCreateView.as_view(), name="students"),
     path("students/<int:pk>/", StudentDetailView.as_view(), name="student-detail"),
+    
+    
+    
+    path(
+        "videos/",
+        VideoListView.as_view(),
+        name="video-list"
+    ),
+
+    path(
+        "videos/upload/",
+        VideoUploadView.as_view(),
+        name="video-upload"
+    ),
+
+    path(
+        "videos/<int:pk>/view/",
+        VideoViewView.as_view(),
+        name="video-view"
+    ),
+
+    path(
+        "videos/<int:pk>/delete/",
+        VideoDeleteView.as_view(),
+        name="video-delete"
+    ),
 ]

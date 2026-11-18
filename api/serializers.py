@@ -1,12 +1,12 @@
 
 from rest_framework import serializers
 from django.contrib.auth.models import User
-
+import os
 from .models import (
     Lessons,
     LessonsVideo,
     Quiz,
-    QuizQuestion, QuizScore, FileUpload
+    QuizQuestion, QuizScore, FileUpload, Video
 )
 
 
@@ -345,3 +345,63 @@ class FileUploadSerializer(serializers.ModelSerializer):
             return obj.file.url
 
         return None
+    
+    
+
+class VideoSerializer(serializers.ModelSerializer):
+    filename = serializers.ReadOnlyField()
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Video
+        fields = [
+            "id",
+            "title",
+            "file",
+            "filename",
+            "file_url",
+            "date_uploaded",
+        ]
+        read_only_fields = [
+            "id",
+            "filename",
+            "file_url",
+            "date_uploaded",
+        ]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+
+        if not obj.file:
+            return None
+
+        url = obj.file.url
+
+        if request:
+            return request.build_absolute_uri(url)
+
+        return url
+
+    def validate_file(self, value):
+        allowed_extensions = [
+            ".mp4",
+            ".mkv",
+            ".avi",
+            ".mov",
+            ".wmv",
+            ".webm",
+            ".flv",
+            ".mpeg",
+            ".mpg",
+            ".m4v",
+            ".3gp",
+        ]
+
+        extension = os.path.splitext(value.name)[1].lower()
+
+        if extension not in allowed_extensions:
+            raise serializers.ValidationError(
+                "Unsupported video format."
+            )
+
+        return value

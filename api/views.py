@@ -8,7 +8,8 @@ from rest_framework import status, generics
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
 from django.http import FileResponse
-from .models import Lessons, Quiz, QuizQuestion, LessonsVideo, QuizScore, FileUpload
+from .models import Lessons, Quiz, QuizQuestion, LessonsVideo, QuizScore, FileUpload, Video
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from .serializers import (
     RegisterSerializer,
@@ -17,7 +18,7 @@ from .serializers import (
     LessonsSerializer,
     QuizSerializer,
     QuizQuestionSerializer,
-    LessonsVideoSerializer, QuizScoreSerializer, FileUploadSerializer
+    LessonsVideoSerializer, QuizScoreSerializer, FileUploadSerializer, VideoSerializer
 )
 
 
@@ -353,8 +354,8 @@ class QuizScoreView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
-        
-    
+
+
     def delete(self, request, user_id):
         try:
             user = User.objects.get(id=user_id)
@@ -390,8 +391,8 @@ class QuizScoreView(APIView):
             },
             status=status.HTTP_200_OK
         )
-        
-        
+
+
 class AllStudentsQuizScoresView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -410,9 +411,9 @@ class AllStudentsQuizScoresView(APIView):
             serializer.data,
             status=status.HTTP_200_OK
         )
-        
-        
-        
+
+
+
 
 
 # UPLOAD FILE
@@ -487,8 +488,8 @@ class FileUploadDeleteView(generics.DestroyAPIView):
     def perform_destroy(self, instance):
         instance.file.delete(save=False)
         instance.delete()
-        
-        
+
+
 # ==========================================================
 # STUDENT MANAGEMENT
 # GET  /api/students/
@@ -539,4 +540,111 @@ class StudentDetailView(generics.RetrieveDestroyAPIView):
         return User.objects.filter(
             is_staff=False,
             is_superuser=False
+        )
+
+
+
+
+
+
+
+class VideoListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        videos = Video.objects.all()
+
+        serializer = VideoSerializer(
+            videos,
+            many=True,
+            context={"request": request}
+        )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class VideoUploadView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+
+        if not request.user.is_superuser:
+            return Response(
+                {"detail": "Only teachers can upload videos."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = VideoSerializer(
+            data=request.data,
+            context={"request": request}
+        )
+
+        if serializer.is_valid():
+            serializer.save()
+
+            return Response(
+                {
+                    "message": "Video uploaded successfully.",
+                    "video": serializer.data
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class VideoViewView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        video = get_object_or_404(Video, pk=pk)
+
+        if not video.file:
+            return Response(
+                {"detail": "Video file not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = VideoSerializer(
+            video,
+            context={"request": request}
+        )
+
+        return Response(
+            {
+                "id": video.id,
+                "title": video.title,
+                "file_url": serializer.data["file_url"],
+                "uploaded_at": video.uploaded_at,
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class VideoDeleteView(APIView):
+    permission_classes = [AllowAny]
+
+    def delete(self, request, pk):
+
+        if not request.user.is_superuser:
+            return Response(
+                {"detail": "Only teachers can delete videos."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        video = get_object_or_404(Video, pk=pk)
+
+        # Delete the actual uploaded file too.
+        if video.file:
+            video.file.delete(save=False)
+
+        video.delete()
+
+        return Response(
+            {"message": "Video deleted successfully."},
+            status=status.HTTP_200_OK
         )
